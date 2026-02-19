@@ -14,6 +14,8 @@ int renderer_init(SDL_Window *window, const PlatformInfo *platform) {
     if (!g_ren) return 0;
     SDL_SetRenderDrawBlendMode(g_ren, SDL_BLENDMODE_BLEND);
     SDL_SetRenderVSync(g_ren, 1);
+    SDL_SetRenderLogicalPresentation(g_ren, FC_GAME_W, FC_GAME_H,
+                                     SDL_LOGICAL_PRESENTATION_LETTERBOX);
     return 1;
 }
 

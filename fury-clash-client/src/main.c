@@ -289,7 +289,11 @@ int main(int argc, char *argv[])
     SDL_Window *window = SDL_CreateWindow(
         "Fury Clash",
         FC_GAME_W, FC_GAME_H,
+#ifdef FC_PLATFORM_IOS
+        SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY
+#else
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
+#endif
     );
     if (!window) {
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
@@ -334,9 +338,14 @@ int main(int argc, char *argv[])
             if (g_state.current == GS_CHAR_SELECT) {
 
                 if (ev.type == SDL_EVENT_FINGER_DOWN) {
-                    /* Map normalised finger coords to game coords */
-                    float tx = ev.tfinger.x * FC_GAME_W;
-                    float ty = ev.tfinger.y * FC_GAME_H;
+                    /* Convert normalised finger coords → window px → logical game coords */
+                    int ww, wh;
+                    SDL_GetWindowSize(window, &ww, &wh);
+                    float tx, ty;
+                    SDL_RenderCoordinatesFromWindow(renderer_get(),
+                        ev.tfinger.x * (float)ww,
+                        ev.tfinger.y * (float)wh,
+                        &tx, &ty);
                     ios_setup_handle_touch(tx, ty);
                 }
 
