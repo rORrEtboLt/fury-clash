@@ -1,0 +1,70 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String
+  elo          Int       @default(1000)
+  wins         Int       @default(0)
+  losses       Int       @default(0)
+  draws        Int       @default(0)
+  totalGames   Int       @default(0)
+  coins        Int       @default(0)
+  ragequits    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  unlocks    Unlock[]
+  matchesP1  Match[]   @relation("player1")
+  matchesP2  Match[]   @relation("player2")
+}
+
+model Match {
+  id          String   @id @default(uuid())
+  player1Id   String
+  player2Id   String
+  player1     Player   @relation("player1", fields: [player1Id], references: [id])
+  player2     Player   @relation("player2", fields: [player2Id], references: [id])
+  winnerId    String?
+  p1Fighter   Int
+  p2Fighter   Int
+  p1EloChange Int
+  p2EloChange Int
+  p1EloAfter  Int
+  p2EloAfter  Int
+  rounds      Json     // [{winner, p1hp, p2hp, durationFrames}]
+  replayUrl   String?
+  region      String
+  durationSec Int
+  endReason   String   // 'ko' | 'timeout' | 'disconnect' | 'forfeit'
+  createdAt   DateTime @default(now())
+}
+
+model Unlock {
+  id         String   @id @default(uuid())
+  playerId   String
+  player     Player   @relation(fields: [playerId], references: [id])
+  itemType   String   // 'fighter' | 'skin' | 'stage'
+  itemId     String
+  unlockedAt DateTime @default(now())
+
+  @@unique([playerId, itemType, itemId])
+}
+
+model ShopItem {
+  id          String  @id
+  itemType    String
+  name        String
+  description String
+  coinCost    Int
+  isActive    Boolean @default(true)
+}

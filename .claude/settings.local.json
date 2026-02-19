@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(snap list:*)",
+      "Bash(docker version:*)",
+      "Bash(systemctl is-active:*)",
+      "Bash(docker compose build:*)",
+      "Bash(pkg-config:*)",
+      "Bash(dpkg -l:*)"
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fury
+      POSTGRES_PASSWORD: fury
+      POSTGRES_DB: fury_clash
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fury -d fury_clash']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    command: node dist/api-server/index.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://fury:fury@postgres:5432/fury_clash
+      - REDIS_URL=redis://redis:6379
+    env_file: .env
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  relay:
+    build: .
+    command: node dist/relay-server/index.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://fury:fury@postgres:5432/fury_clash
+      - REDIS_URL=redis://redis:6379
+    env_file: .env
+    ports:
+      - '3002:3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  matchmaker:
+    build: .
+    command: node dist/matchmaker/index.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://fury:fury@postgres:5432/fury_clash
+      - REDIS_URL=redis://redis:6379
+      - RELAY_INTERNAL_ENDPOINT=ws://relay:3002
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,152 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'fury-clash-client/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'Relay server WebSocket URL (ws://YOUR_IP:3002)'
+        required: false
+        default: 'ws://192.168.1.100:3002'
+
+# ── What this produces ────────────────────────────────────────────────────
+# An unsigned .ipa file downloadable from the GitHub Actions "Artifacts" tab.
+# Install it on your iPhone with AltStore or Sideloadly using your Apple ID.
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-14       # Apple Silicon Mac, Xcode 15+
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Select Xcode ─────────────────────────────────────────────────
+      - name: Select Xcode 15
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      # ── 3. Build SDL3 for iOS (arm64 device) ────────────────────────────
+      - name: Cache SDL3 iOS build
+        id: cache-sdl3-ios
+        uses: actions/cache@v4
+        with:
+          path: SDL3-ios
+          key: sdl3-ios-3.x-${{ hashFiles('.github/workflows/ios-build.yml') }}
+
+      - name: Clone SDL3
+        if: steps.cache-sdl3-ios.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/libsdl-org/SDL.git SDL3-src
+
+      - name: Configure SDL3 for iOS
+        if: steps.cache-sdl3-ios.outputs.cache-hit != 'true'
+        run: |
+          cmake -S SDL3-src -B SDL3-build \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL_SHARED=OFF \
+            -DSDL_STATIC=ON \
+            -DSDL_TEST_LIBRARY=OFF \
+            -DSDL_TESTS=OFF \
+            -G Xcode
+
+      - name: Build SDL3 for iOS
+        if: steps.cache-sdl3-ios.outputs.cache-hit != 'true'
+        run: |
+          cmake --build SDL3-build --config Release -- -sdk iphoneos
+          cmake --install SDL3-build --config Release --prefix SDL3-ios
+
+      # ── 4. Configure Fury Clash for iOS ──────────────────────────────────
+      - name: Set server URL
+        run: |
+          SERVER_URL="${{ github.event.inputs.server_url || 'ws://192.168.1.100:3002' }}"
+          echo "FC_IOS_SERVER_URL=${SERVER_URL}" >> $GITHUB_ENV
+          echo "Building with server URL: ${SERVER_URL}"
+
+      - name: Configure Fury Clash for iOS
+        run: |
+          cmake -S fury-clash-client -B fury-clash-ios \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DSDL3_DIR="${{ github.workspace }}/SDL3-ios/lib/cmake/SDL3" \
+            -DFC_IOS_SERVER_URL="${{ env.FC_IOS_SERVER_URL }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -G Xcode
+
+      # ── 5. Build the app (unsigned) ───────────────────────────────────────
+      - name: Build Fury Clash iOS app
+        run: |
+          xcodebuild \
+            -project fury-clash-ios/FuryClash.xcodeproj \
+            -scheme fury-clash \
+            -sdk iphoneos \
+            -configuration Release \
+            -arch arm64 \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ONLY_ACTIVE_ARCH=YES \
+            build \
+            SYMROOT="${{ github.workspace }}/ios-build-output"
+
+      # ── 6. Package as .ipa ───────────────────────────────────────────────
+      - name: Package IPA
+        run: |
+          APP_PATH=$(find ios-build-output -name "fury-clash.app" | head -1)
+          echo "Found app at: $APP_PATH"
+
+          mkdir -p ipa-stage/Payload
+          cp -r "$APP_PATH" ipa-stage/Payload/fury-clash.app
+
+          cd ipa-stage
+          zip -r ../FuryClash.ipa Payload
+
+          echo "IPA created: FuryClash.ipa ($(du -sh ../FuryClash.ipa | cut -f1))"
+
+      # ── 7. Upload artifact ───────────────────────────────────────────────
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FuryClash-iOS-unsigned
+          path: FuryClash.ipa
+          retention-days: 14
+
+      # ── 8. Print install instructions ────────────────────────────────────
+      - name: Print sideload instructions
+        run: |
+          echo ""
+          echo "=========================================================="
+          echo "  IPA build complete!"
+          echo "=========================================================="
+          echo ""
+          echo "  Download FuryClash.ipa from the Artifacts section above."
+          echo ""
+          echo "  Install on iPhone (Linux laptop):"
+          echo "  ──────────────────────────────────"
+          echo "  Option A — AltServer-Linux (easiest):"
+          echo "    1. pip install pyipautil altserver"
+          echo "    2. Connect iPhone via USB"
+          echo "    3. altserver install FuryClash.ipa"
+          echo ""
+          echo "  Option B — pymobiledevice3:"
+          echo "    1. pip install pymobiledevice3"
+          echo "    2. pymobiledevice3 usbmux install FuryClash.ipa"
+          echo ""
+          echo "  Option C — SideStore (fully on-device after bootstrap):"
+          echo "    https://sidestore.io"
+          echo ""
+          echo "  Server URL baked in: ${{ env.FC_IOS_SERVER_URL }}"
+          echo "  To change: re-run workflow with a different server_url input."
+          echo "=========================================================="
