@@ -25,7 +25,6 @@
                             widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <label opaque="NO"
-                                   adjustsFontSizeToFit="NO"
                                    userInteractionEnabled="NO"
                                    contentMode="left"
                                    horizontalHuggingPriority="251"
