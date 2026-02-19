@@ -104,8 +104,16 @@ jobs:
       # ── 6. Package as .ipa ───────────────────────────────────────────────
       - name: Package IPA
         run: |
-          APP_PATH=$(find ios-build-output -name "fury-clash.app" | head -1)
+          # CMake's Xcode generator may place the product in the project build
+          # directory rather than SYMROOT, so search both locations.
+          APP_PATH=$(find ios-build-output fury-clash-ios -name "fury-clash.app" -type d 2>/dev/null | head -1)
           echo "Found app at: $APP_PATH"
+
+          if [ -z "$APP_PATH" ]; then
+            echo "fury-clash.app not found in expected locations. Searching workspace:"
+            find . -maxdepth 6 -name "*.app" -type d 2>/dev/null || true
+            exit 1
+          fi
 
           mkdir -p ipa-stage/Payload
           cp -r "$APP_PATH" ipa-stage/Payload/fury-clash.app
