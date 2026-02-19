@@ -14,10 +14,9 @@ on:
         default: 'ws://192.168.1.100:3002'
 
 # ── What this produces ────────────────────────────────────────────────────
-# If IOS_CERTIFICATE_P12 / IOS_PROVISIONING_PROFILE secrets are set:
-#   → signed .ipa  →  install directly: ideviceinstaller -i FuryClash.ipa
-# Otherwise:
-#   → unsigned .ipa  →  needs AltStore / AltServer-Linux to re-sign on install
+# An unsigned .ipa downloadable from the GitHub Actions "Artifacts" tab.
+# Install on iPhone with AltServer-Linux:
+#   ./AltServer -a YOUR_APPLE_ID -p PASSWORD -u DEVICE_UDID FuryClash.ipa
 
 jobs:
   build-ios:
@@ -103,88 +102,11 @@ jobs:
             build \
             SYMROOT="${{ github.workspace }}/ios-build-output"
 
-      # ── 5b. Sign app bundle ───────────────────────────────────────────────
-      # Skipped automatically if secrets are not configured.
-      #
-      # Required secrets (repo → Settings → Secrets → Actions):
-      #   IOS_CERTIFICATE_P12         Base64-encoded p12 certificate file
-      #   IOS_CERTIFICATE_PASSWORD    Password set when exporting the p12
-      #   IOS_PROVISIONING_PROFILE    Base64-encoded .mobileprovision file
-      #                               Must cover bundle ID: com.furyclash.game
-      #
-      # How to obtain these (one-time, needs any Mac):
-      #   1. Xcode → Settings → Accounts → add your Apple ID
-      #   2. Manage Certificates → + → Apple Development  (free account works)
-      #   3. Keychain Access → My Certificates → right-click → Export as .p12
-      #      base64 -i cert.p12 | pbcopy        → paste as IOS_CERTIFICATE_P12
-      #      echo -n "p12password" | pbcopy      → paste as IOS_CERTIFICATE_PASSWORD
-      #   4. Connect iPhone, open any Xcode project, build for device once.
-      #      Xcode auto-creates a profile in:
-      #      ~/Library/MobileDevice/Provisioning Profiles/
-      #      base64 -i ~/"Library/MobileDevice/Provisioning Profiles"/*.mobileprovision \
-      #        | pbcopy                          → paste as IOS_PROVISIONING_PROFILE
-      - name: Sign app bundle
-        if: ${{ secrets.IOS_CERTIFICATE_P12 != '' }}
-        env:
-          IOS_CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
-        run: |
-          # ── Locate built app ──────────────────────────────────────────────
-          APP_PATH=$(find ios-build-output fury-clash-ios \
-            -name "fury-clash.app" -type d 2>/dev/null | head -1)
-          echo "Signing: $APP_PATH"
-
-          # ── Temporary keychain ────────────────────────────────────────────
-          KC="$RUNNER_TEMP/signing.keychain-db"
-          KC_PASS=$(openssl rand -hex 16)
-          security create-keychain -p "$KC_PASS" "$KC"
-          security set-keychain-settings -lut 21600 "$KC"
-          security unlock-keychain -p "$KC_PASS" "$KC"
-
-          # ── Import p12 certificate ────────────────────────────────────────
-          echo "$IOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" \
-            -P "$IOS_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KC"
-          security set-key-partition-list \
-            -S apple-tool:,apple: -s -k "$KC_PASS" "$KC"
-          security list-keychain -d user -s "$KC"
-
-          # ── Install provisioning profile ──────────────────────────────────
-          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode \
-            > "$RUNNER_TEMP/profile.mobileprovision"
-          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" \
-            > "$RUNNER_TEMP/decoded_profile.plist"
-          PP_UUID=$(/usr/libexec/PlistBuddy \
-            -c 'Print UUID' "$RUNNER_TEMP/decoded_profile.plist")
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp "$RUNNER_TEMP/profile.mobileprovision" \
-            ~/Library/MobileDevice/Provisioning\ Profiles/"$PP_UUID.mobileprovision"
-
-          # ── Embed provisioning profile inside .app ────────────────────────
-          cp "$RUNNER_TEMP/profile.mobileprovision" \
-            "$APP_PATH/embedded.mobileprovision"
-
-          # ── Extract entitlements from profile ─────────────────────────────
-          /usr/libexec/PlistBuddy \
-            -c 'Print :Entitlements' "$RUNNER_TEMP/decoded_profile.plist" \
-            -x > "$RUNNER_TEMP/entitlements.plist"
-
-          # ── Codesign ──────────────────────────────────────────────────────
-          CERT_ID=$(security find-identity -v -p codesigning "$KC" \
-            | grep -oE '"[^"]+"' | head -1 | tr -d '"')
-          echo "Certificate identity: $CERT_ID"
-          codesign --force --sign "$CERT_ID" \
-            --entitlements "$RUNNER_TEMP/entitlements.plist" \
-            --timestamp=none \
-            "$APP_PATH"
-
-          echo "SIGNED=true" >> $GITHUB_ENV
-
       # ── 6. Package as .ipa ───────────────────────────────────────────────
       - name: Package IPA
         run: |
+          # CMake's Xcode generator may place the product in the project build
+          # directory rather than SYMROOT, so search both locations.
           APP_PATH=$(find ios-build-output fury-clash-ios \
             -name "fury-clash.app" -type d 2>/dev/null | head -1)
           echo "Found app at: $APP_PATH"
@@ -207,7 +129,7 @@ jobs:
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FuryClash-iOS-${{ env.SIGNED == 'true' && 'signed' || 'unsigned' }}
+          name: FuryClash-iOS-unsigned
           path: FuryClash.ipa
           retention-days: 14
 
@@ -217,30 +139,14 @@ jobs:
           echo ""
           echo "=========================================================="
           echo "  IPA build complete!"
-          if [ "${SIGNED}" = "true" ]; then
-            echo "  Status: SIGNED — install directly with ideviceinstaller"
-          else
-            echo "  Status: UNSIGNED — needs re-signing on install"
-          fi
           echo "=========================================================="
           echo ""
           echo "  Download FuryClash.ipa from the Artifacts section above."
           echo ""
-          if [ "${SIGNED}" = "true" ]; then
-            echo "  Install signed IPA (Linux):"
-            echo "    sudo apt install libimobiledevice-utils"
-            echo "    ideviceinstaller -i FuryClash.ipa"
-          else
-            echo "  Install unsigned IPA (Linux):"
-            echo "    Option A — AltServer-Linux:"
-            echo "      https://github.com/NyaMisty/AltServer-Linux/releases"
-            echo ""
-            echo "    Option B — add signing secrets for signed builds:"
-            echo "      Repo → Settings → Secrets → Actions:"
-            echo "        IOS_CERTIFICATE_P12, IOS_CERTIFICATE_PASSWORD,"
-            echo "        IOS_PROVISIONING_PROFILE"
-            echo "      See comments in ios-build.yml for how to export them."
-          fi
+          echo "  Install on iPhone (Linux):"
+          echo "    ALTSERVER_ANISETTE_SERVER=https://ani.sidestore.io \\"
+          echo "    ./AltServer -a YOUR_APPLE_ID -p YOUR_PASSWORD \\"
+          echo "    -u YOUR_DEVICE_UDID FuryClash.ipa"
           echo ""
           echo "  Server URL baked in: ${{ env.FC_IOS_SERVER_URL }}"
           echo "  To change: re-run workflow with a different server_url input."
