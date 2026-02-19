@@ -74,15 +74,6 @@ if(FC_PLATFORM_IOS)
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC       "YES"
     )
 
-    # Embed the launch screen storyboard into the app bundle
-    target_sources(fury-clash PRIVATE
-        "${CMAKE_SOURCE_DIR}/platform/ios/LaunchScreen.storyboard"
-    )
-    set_source_files_properties(
-        "${CMAKE_SOURCE_DIR}/platform/ios/LaunchScreen.storyboard"
-        PROPERTIES MACOSX_PACKAGE_LOCATION Resources
-    )
-
     # Embed assets into the bundle
     file(GLOB_RECURSE ASSET_FILES
         "${CMAKE_SOURCE_DIR}/assets/*"
