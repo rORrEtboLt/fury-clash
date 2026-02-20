@@ -21,6 +21,7 @@ Makefile
 
 # ── iOS build artifacts ───────────────────────────────────────────────────
 *.ipa
+ios-install/
 SDL3-ios/
 SDL3-src/
 SDL3-build/
@@ -45,6 +46,9 @@ xcuserdata/
 /tmp/relay.log
 /tmp/p1.log
 /tmp/p2.log
+
+# ── Personal / sensitive internal commands (not shared) ───────────────────
+USEFUL_INTERNAL_COMMANDS.md
 
 # ── Claude Code (local dev settings — not shared) ─────────────────────────
 .claude/settings.local.json

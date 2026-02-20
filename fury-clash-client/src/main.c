@@ -47,6 +47,7 @@ static struct {
     ConnectField active_field;
     int          ready;             /* 1 when user hits "Join P1/P2" */
     int          chosen_slot;       /* 0 or 1 */
+    int          pending_text_input; /* deferred SDL_StartTextInput (stop+start must span frames) */
 } g_ios_cfg;
 
 static void ios_cfg_init(void)
@@ -216,22 +217,20 @@ static void render_ios_setup(SDL_Renderer *ren)
 
 static void ios_setup_handle_touch(float tx, float ty)
 {
-    /* Field tap regions */
+    /* Field tap regions — stop+start in the same runloop tick causes iOS to not
+     * show the keyboard.  We stop here and set a flag; SDL_StartTextInput is
+     * called at the top of the next frame so the two calls span separate ticks. */
     if (tx >= 160 && tx <= 1120) {
         if (ty >= 180 && ty <= 240) {
-            if (g_ios_cfg.active_field != CF_SERVER) {
-                SDL_StopTextInput(NULL);
-                g_ios_cfg.active_field = CF_SERVER;
-            }
-            SDL_StartTextInput(NULL);
+            g_ios_cfg.active_field = CF_SERVER;
+            SDL_StopTextInput(NULL);
+            g_ios_cfg.pending_text_input = 1;
             return;
         }
         if (ty >= 280 && ty <= 340) {
-            if (g_ios_cfg.active_field != CF_ROOM) {
-                SDL_StopTextInput(NULL);
-                g_ios_cfg.active_field = CF_ROOM;
-            }
-            SDL_StartTextInput(NULL);
+            g_ios_cfg.active_field = CF_ROOM;
+            SDL_StopTextInput(NULL);
+            g_ios_cfg.pending_text_input = 1;
             return;
         }
     }
@@ -327,6 +326,17 @@ int main(int argc, char *argv[])
 
     /* ── Main loop ──────────────────────────────────────────────────── */
     while (g_loop.running) {
+
+#ifdef FC_PLATFORM_IOS
+        /* Deferred keyboard activation: SDL_StopTextInput was called on the
+         * previous frame when the user tapped a field.  Starting here (a new
+         * tick) ensures stop and start never occur in the same runloop cycle,
+         * which would prevent iOS from showing the keyboard. */
+        if (g_ios_cfg.pending_text_input && g_state.current == GS_CHAR_SELECT) {
+            g_ios_cfg.pending_text_input = 0;
+            SDL_StartTextInput(NULL);
+        }
+#endif
 
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
