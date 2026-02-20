@@ -13,7 +13,6 @@ void platform_init(PlatformInfo *info) {
     }
 
     /* DPI */
-    float hdpi = 0, vdpi = 0, ddpi = 0;
     SDL_GetDisplayContentScale(display); /* SDL3: content scale instead */
     info->screen_dpi = 96.0f; /* default desktop DPI */
 

@@ -9,7 +9,6 @@ static uint16_t    g_state = 0;
 /* Joystick tracking */
 static SDL_FingerID g_joy_finger = 0;
 static float        g_joy_ax = 0, g_joy_ay = 0;   /* anchor point */
-static float        g_joy_cx = 0, g_joy_cy = 0;   /* current point */
 static int          g_joy_active = 0;
 
 void input_touch_init(void)     { memset(&g_layout, 0, sizeof(g_layout)); }

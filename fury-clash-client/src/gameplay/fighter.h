@@ -60,6 +60,9 @@ typedef struct Fighter {
     int          hitbox_count;
     Rect         hurtbox;
     HitProperties hit_props;
+
+    /* Input history — part of rollback state for deterministic edge detection */
+    uint16_t     prev_input;
 } Fighter;
 
 void fighter_init(Fighter *f, int fighter_id, int player_slot);
