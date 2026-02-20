@@ -10,20 +10,6 @@ else()
     set(FC_PLATFORM_IOS FALSE)
 endif()
 
-# ── Desktop iOS simulator mode ────────────────────────────────────────────
-# Builds a plain desktop window sized to an iPhone mini (landscape 844x390)
-# with the iOS connect-setup UI and mouse-as-touch enabled.  Run two
-# instances side-by-side for local multiplayer testing without a physical device.
-option(FC_IOS_SIM
-    "iPhone mini desktop simulator (iOS UI + mouse-as-touch, 844x390 window)"
-    OFF)
-
-if(FC_IOS_SIM AND FC_PLATFORM_IOS)
-    message(FATAL_ERROR
-        "FC_IOS_SIM is for desktop builds only. "
-        "Do not set it when CMAKE_SYSTEM_NAME=iOS.")
-endif()
-
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -103,7 +89,7 @@ if(FC_PLATFORM_IOS)
     endforeach()
 
 else()
-    # ── Desktop (Linux / macOS) — covers both standard and iOS-sim builds ──
+    # ── Desktop (Linux / macOS) ────────────────────────────────────────
     target_link_libraries(fury-clash PRIVATE SDL3::SDL3 m)
 
     target_compile_options(fury-clash PRIVATE
@@ -115,22 +101,14 @@ else()
         $<$<CONFIG:Debug>:-fsanitize=address>
     )
 
-    if(FC_IOS_SIM)
-        # iOS sim mode: compile with iOS UI code path and mouse-as-touch
-        target_compile_definitions(fury-clash PRIVATE
-            FC_PLATFORM_IOS=1
-            FC_IOS_SIM=1
-        )
-    else()
-        # ── Tests (standard desktop only, not iOS sim) ─────────────────
-        enable_testing()
-        foreach(TEST rollback hitbox input_motion serializer)
-            add_executable(test_${TEST} tests/test_${TEST}.c)
-            target_include_directories(test_${TEST} PRIVATE src)
-            target_link_libraries(test_${TEST} PRIVATE SDL3::SDL3 m)
-            add_test(NAME ${TEST} COMMAND test_${TEST})
-        endforeach()
-    endif()
+    # ── Tests (desktop only) ───────────────────────────────────────────
+    enable_testing()
+    foreach(TEST rollback hitbox input_motion serializer)
+        add_executable(test_${TEST} tests/test_${TEST}.c)
+        target_include_directories(test_${TEST} PRIVATE src)
+        target_link_libraries(test_${TEST} PRIVATE SDL3::SDL3 m)
+        add_test(NAME ${TEST} COMMAND test_${TEST})
+    endforeach()
 
     # ── Install (desktop only) ─────────────────────────────────────────
     install(TARGETS fury-clash DESTINATION bin)
@@ -141,10 +119,3 @@ endif()
 target_compile_definitions(fury-clash PRIVATE
     $<$<CONFIG:Debug>:FC_DEBUG>
 )
-
-# Forward the server URL override to C when supplied via -DFC_IOS_SERVER_URL=...
-if(FC_IOS_SERVER_URL)
-    target_compile_definitions(fury-clash PRIVATE
-        FC_IOS_SERVER_URL="${FC_IOS_SERVER_URL}"
-    )
-endif()

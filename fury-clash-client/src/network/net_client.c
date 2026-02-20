@@ -513,7 +513,9 @@ int net_client_connect(const char *url)
 
 void net_client_receive(void)
 {
-    if (g_ws.fd < 0) return;
+    /* g_ws.fd is zero-initialized (= stdin) until net_client_configure() is
+     * called.  Guard on configured so we never call recv() on fd 0. */
+    if (!g_ws.configured || g_ws.fd < 0) return;
 
     /* ── Step 1: Wait for non-blocking connect() to complete ─────────────── */
     if (g_ws.hs == HS_TCP_CONN) {

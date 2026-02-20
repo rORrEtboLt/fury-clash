@@ -278,6 +278,11 @@ int main(int argc, char *argv[])
 #endif
 
     /* ── SDL3 init ───────────────────────────────────────────────────── */
+#ifdef FC_IOS_SIM
+    /* Translate mouse button presses into finger events so the iOS
+     * connect-setup touch regions respond to mouse clicks on desktop. */
+    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
+#endif
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 1;
@@ -287,10 +292,15 @@ int main(int argc, char *argv[])
 
     SDL_Window *window = SDL_CreateWindow(
         "Fury Clash",
+#if defined(FC_IOS_SIM)
+        /* iPhone 13 mini landscape — fixed, not fullscreen, mouse-as-touch */
+        FC_IOSSIM_W, FC_IOSSIM_H,
+        SDL_WINDOW_HIGH_PIXEL_DENSITY
+#elif defined(FC_PLATFORM_IOS)
         FC_GAME_W, FC_GAME_H,
-#ifdef FC_PLATFORM_IOS
         SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY
 #else
+        FC_GAME_W, FC_GAME_H,
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
 #endif
     );

@@ -27,6 +27,15 @@
 #define FC_IOS_SERVER_URL   "ws://192.168.1.100:3002"
 #endif
 
+/* ── iOS desktop simulator window size ──────────────────────────────────
+ * Matches iPhone 13 mini in landscape (logical points at 1x scale).
+ * SDL3 letterboxes the 1280x720 game content inside this window.
+ * Run two instances side-by-side for local multiplayer testing. */
+#ifdef FC_IOS_SIM
+#  define FC_IOSSIM_W  844
+#  define FC_IOSSIM_H  390
+#endif
+
 /* ── Fighters ───────────────────────────────────────────────────────── */
 #define FC_MAX_FIGHTERS     2
 #define FC_MAX_HITBOXES     4
