@@ -8,6 +8,7 @@ import {
   encodeOpponentDisconnect,
   encodePing,
   encodeWaiting,
+  encodeLoadout,
   isValidInput,
 } from './protocol.js';
 import { MsgType, type RoomState, type MatchEndPayload } from '../shared/types.js';
@@ -108,6 +109,13 @@ export class RelayRoom {
       if (opponent && opponent.ws.readyState === 1 /* OPEN */) {
         opponent.pendingFrames.push({ frame: msg.frame, input: msg.input });
         this.flush(opponentSlot);
+      }
+    } else if (msg.type === MsgType.CLIENT_LOADOUT) {
+      /* Forward loadout choice to opponent as SERVER_LOADOUT */
+      const opponentSlot = (slot ^ 1) as 0 | 1;
+      const opponent = this.slots[opponentSlot];
+      if (opponent?.ws.readyState === 1 /* OPEN */) {
+        opponent.ws.send(encodeLoadout(msg.loadout));
       }
     }
   }

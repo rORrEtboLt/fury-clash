@@ -84,6 +84,7 @@ static struct {
     NetStats     stats;
 
     int         network_mode;
+    int         opponent_loadout;  /* -1 = not yet received; 0/1/2 after SERVER_LOADOUT */
 } g_ws;
 
 /* ── URL parser ──────────────────────────────────────────────────────────── */
@@ -404,6 +405,13 @@ static void dispatch_message(const uint8_t *payload, size_t plen)
         SDL_Log("[net] Opponent reconnected");
         break;
 
+    case MSG_SERVER_LOADOUT: /* 0x20 — relay forwarded opponent's loadout choice */
+        if (plen >= 2) {
+            g_ws.opponent_loadout = (int)payload[1];
+            SDL_Log("[net] Opponent loadout: %d", g_ws.opponent_loadout);
+        }
+        break;
+
     default:
         SDL_Log("[net] Unknown message type 0x%02X (len=%zu)", type, plen);
         break;
@@ -418,10 +426,11 @@ void net_client_configure(const char *url, const char *room_id,
                           const char *player_id, int slot)
 {
     memset(&g_ws, 0, sizeof(g_ws));
-    g_ws.fd           = -1;
-    g_ws.hs           = HS_IDLE;
-    g_ws.state        = NET_IDLE;
-    g_ws.network_mode = 1;
+    g_ws.fd                = -1;
+    g_ws.hs                = HS_IDLE;
+    g_ws.state             = NET_IDLE;
+    g_ws.network_mode      = 1;
+    g_ws.opponent_loadout  = -1;   /* not yet received */
 
     snprintf(g_ws.url,       sizeof(g_ws.url),       "%s", url       ? url       : "");
     snprintf(g_ws.room_id,   sizeof(g_ws.room_id),   "%s", room_id   ? room_id   : "");
@@ -708,3 +717,13 @@ int      net_client_is_network_mode(void)     { return g_ws.network_mode; }
 
 const NetMatchInfo *net_client_get_match_info(void) { return &g_ws.match_info; }
 const NetEndInfo   *net_client_get_end_info(void)   { return &g_ws.end_info; }
+
+void net_client_send_loadout(int loadout)
+{
+    if (g_ws.hs != HS_OPEN) return;
+    uint8_t buf[2] = { MSG_LOADOUT, (uint8_t)(loadout & 0xFF) };
+    ws_send(buf, 2);
+    SDL_Log("[net] CLIENT_LOADOUT sent: %d", loadout);
+}
+
+int net_client_get_opponent_loadout(void) { return g_ws.opponent_loadout; }

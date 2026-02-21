@@ -10,7 +10,8 @@ typedef struct SimState {
     uint32_t   frame;
 } SimState;
 
-void simulation_init(int p1_fighter_id, int p2_fighter_id);
+void simulation_init(int p1_fighter_id, int p2_fighter_id,
+                     LoadoutType p1_loadout, LoadoutType p2_loadout);
 void simulation_tick(uint16_t p1_input, uint16_t p2_input);
 void simulation_render(float alpha);
 

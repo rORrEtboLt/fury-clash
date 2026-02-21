@@ -29,7 +29,11 @@ int hitbox_check(const Fighter *attacker, const Fighter *defender) {
 
 void hitbox_resolve(Fighter *attacker, Fighter *defender) {
     int blocked = (defender->state == FS_BLOCK || defender->state == FS_CROUCH);
-    fighter_apply_hit(defender, &attacker->hit_props, blocked);
+    /* Scale damage by attacker's loadout multiplier (fire pack = 120 = ×1.2) */
+    HitProperties hp = attacker->hit_props;
+    hp.damage      = hp.damage      * attacker->damage_pct / 100;
+    hp.chip_damage = hp.chip_damage * attacker->damage_pct / 100;
+    fighter_apply_hit(defender, &hp, blocked);
     /* Clear hitboxes so the hit only fires once per active window */
     attacker->hitbox_count = 0;
 }

@@ -3,6 +3,12 @@
 
 typedef struct { float x, y, w, h; } Rect;
 
+typedef enum LoadoutType {
+    LOADOUT_NONE  = 0,
+    LOADOUT_FIRE  = 1,   /* fire pack: +20% damage dealt */
+    LOADOUT_FROST = 2,   /* frost pack: +20 max HP */
+} LoadoutType;
+
 typedef struct {
     int   damage;
     int   chip_damage;
@@ -63,6 +69,12 @@ typedef struct Fighter {
 
     /* Input history — part of rollback state for deterministic edge detection */
     uint16_t     prev_input;
+
+    /* Pre-match loadout — set once in simulation_init, part of rollback state */
+    LoadoutType  loadout;
+
+    /* Fire-pack damage multiplier × 100 (100 = ×1.0, 120 = ×1.2) */
+    int          damage_pct;
 } Fighter;
 
 void fighter_init(Fighter *f, int fighter_id, int player_slot);

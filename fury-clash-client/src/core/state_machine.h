@@ -3,6 +3,7 @@
 typedef enum GameState {
     GS_TITLE = 0,
     GS_MAIN_MENU,
+    GS_LOBBY,           /* create/join room + loadout selection */
     GS_CHAR_SELECT,
     GS_MATCH_SEARCH,
     GS_LOADING,

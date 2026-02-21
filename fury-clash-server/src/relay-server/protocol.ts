@@ -39,7 +39,12 @@ export interface DecodedPong {
   type: MsgType.CLIENT_PONG;
 }
 
-export type DecodedMsg = DecodedJoin | DecodedInput | DecodedPong;
+export interface DecodedLoadout {
+  type: MsgType.CLIENT_LOADOUT;
+  loadout: number;   /* 0=none 1=fire 2=frost */
+}
+
+export type DecodedMsg = DecodedJoin | DecodedInput | DecodedPong | DecodedLoadout;
 
 export function decodeClientMsg(data: Buffer): DecodedMsg | null {
   if (data.length < 1) return null;
@@ -65,6 +70,10 @@ export function decodeClientMsg(data: Buffer): DecodedMsg | null {
 
     case MsgType.CLIENT_PONG:
       return { type: MsgType.CLIENT_PONG };
+
+    case MsgType.CLIENT_LOADOUT:
+      if (data.length < 2) return null;
+      return { type: MsgType.CLIENT_LOADOUT, loadout: data.readUInt8(1) };
 
     default:
       return null;
@@ -129,6 +138,14 @@ export function encodePing(timestamp: number): Buffer {
 /** SERVER_OPPONENT_DISCONNECT */
 export function encodeOpponentDisconnect(graceSec: number): Buffer {
   return encodeJson(MsgType.SERVER_OPPONENT_DISCONNECT, { graceSec });
+}
+
+/** SERVER_LOADOUT — relay opponent's chosen loadout byte */
+export function encodeLoadout(loadoutByte: number): Buffer {
+  const buf = Buffer.allocUnsafe(2);
+  buf.writeUInt8(MsgType.SERVER_LOADOUT, 0);
+  buf.writeUInt8(loadoutByte & 0xFF, 1);
+  return buf;
 }
 
 /** SERVER_ERROR */

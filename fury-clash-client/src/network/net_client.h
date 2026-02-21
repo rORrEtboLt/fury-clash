@@ -50,6 +50,12 @@ void net_client_receive(void);
 /* Send CLIENT_INPUT (9-byte masked WS binary frame). */
 void net_client_send_input(int frame, uint16_t input);
 
+/* Send CLIENT_LOADOUT (2-byte: type + loadout byte 0=none/1=fire/2=frost). */
+void net_client_send_loadout(int loadout);
+
+/* Returns the opponent's loadout (0/1/2) once SERVER_LOADOUT arrives, or -1. */
+int net_client_get_opponent_loadout(void);
+
 /* ── State transitions ──────────────────────────────────────────────────── */
 
 /* Call after reading NET_READY to move state to NET_FIGHTING. */

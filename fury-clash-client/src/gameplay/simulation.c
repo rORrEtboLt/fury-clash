@@ -9,11 +9,30 @@
 
 static SimState g_sim;
 
-void simulation_init(int p1_fighter_id, int p2_fighter_id) {
+void simulation_init(int p1_fighter_id, int p2_fighter_id,
+                     LoadoutType p1_loadout, LoadoutType p2_loadout)
+{
     memset(&g_sim, 0, sizeof(g_sim));
     fighter_init(&g_sim.fighters[0], p1_fighter_id, 0);
     fighter_init(&g_sim.fighters[1], p2_fighter_id, 1);
     round_init(&g_sim.round);
+
+    /* Apply pre-match loadout modifiers */
+    for (int i = 0; i < 2; i++) {
+        Fighter *f = &g_sim.fighters[i];
+        LoadoutType lt = (i == 0) ? p1_loadout : p2_loadout;
+        f->loadout     = lt;
+        f->damage_pct  = 100;   /* default: ×1.0 */
+        if (lt == LOADOUT_FIRE) {
+            f->damage_pct = 120;   /* fire pack: +20% damage dealt */
+        } else if (lt == LOADOUT_FROST) {
+            f->health     += 20;   /* frost pack: +20 HP */
+            f->max_health += 20;
+        }
+    }
+
+    SDL_Log("[sim] init fighters %d vs %d  loadouts %d/%d",
+            p1_fighter_id, p2_fighter_id, (int)p1_loadout, (int)p2_loadout);
 }
 
 void simulation_tick(uint16_t p1_input, uint16_t p2_input) {

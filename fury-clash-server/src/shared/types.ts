@@ -40,6 +40,7 @@ export const enum MsgType {
   CLIENT_JOIN     = 0x01,   // join a relay room
   CLIENT_INPUT    = 0x02,   // per-frame input
   CLIENT_PONG     = 0x03,   // reply to SERVER_PING
+  CLIENT_LOADOUT  = 0x04,   // chosen pre-match loadout (1B type + 1B loadout)
 
   // Server → Client
   SERVER_WAITING  = 0x10,   // waiting for opponent
@@ -50,6 +51,7 @@ export const enum MsgType {
   SERVER_ERROR    = 0x15,   // error message
   SERVER_RECONNECT= 0x16,   // opponent reconnected
   SERVER_OPPONENT_DISCONNECT = 0x17,
+  SERVER_LOADOUT  = 0x20,   // opponent's chosen loadout forwarded by relay
 }
 
 /** CLIENT_INPUT wire format: 1B type | 2B seq | 4B frame | 2B input = 9 bytes */

@@ -10,6 +10,7 @@ typedef enum MsgType {
     MSG_JOIN        = 0x01,   /* 1B type + variable JSON payload          */
     MSG_INPUT       = 0x02,   /* 9-byte binary (see MsgInput below)       */
     MSG_PONG        = 0x03,   /* 1B type + 8B timestamp echo              */
+    MSG_LOADOUT     = 0x04,   /* 2-byte: type + loadout (0/1/2)           */
 
     /* Server → Client */
     MSG_WAITING     = 0x10,   /* waiting for opponent (JSON)              */
@@ -20,6 +21,7 @@ typedef enum MsgType {
     MSG_ERROR       = 0x15,   /* server error (JSON)                      */
     MSG_RECONNECT   = 0x16,   /* opponent reconnected (JSON)              */
     MSG_DISCONNECT  = 0x17,   /* opponent disconnected (JSON)             */
+    MSG_SERVER_LOADOUT = 0x20, /* relay fwd: opponent's loadout (2 bytes) */
 } MsgType;
 
 /* ── Input bitfield (2 bytes) ────────────────────────────────────────
